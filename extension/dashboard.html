@@ -1,0 +1,179 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <title>Projektläge – PP Planering</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="topbar">
+    <div class="brand">
+      <img src="icons/icon32.png" alt="" width="28" height="28">
+      <div>
+        <h1>Projektläge</h1>
+        <div class="brand-sub" id="conn">Ansluter till Projektportalen…</div>
+      </div>
+    </div>
+    <div class="top-actions">
+      <span class="updated" id="updated"></span>
+      <button id="btnReload" class="btn primary" title="Hämta om data">⟳ Uppdatera</button>
+      <button id="btnCsv" class="btn" disabled>Exportera</button>
+      <button id="btnSettings" class="btn icon" title="Inställningar" aria-label="Inställningar">⚙</button>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <section id="connectBox" class="notice hidden">
+      <div>
+        <h2>Projektportalen är inte öppen</h2>
+        <p>Översikten läser data via din inloggning. Öppna Projektportalen i en flik, logga in och tryck <b>Uppdatera</b>.</p>
+      </div>
+      <button id="btnOpenPortal" class="btn primary">Öppna Projektportalen</button>
+    </section>
+
+    <div id="status" class="loading hidden"><span class="spinner"></span><span id="statusText">Hämtar…</span></div>
+    <div id="error" class="error hidden"></div>
+
+    <main id="main" class="hidden">
+      <!-- Nyckeltal -->
+      <section class="kpis" id="kpis"></section>
+
+      <!-- Fördelning per status -->
+      <section class="statusbar-wrap">
+        <div class="statusbar" id="statusbar"></div>
+      </section>
+
+      <!-- Verktygsrad -->
+      <section class="toolbar">
+        <div class="search">
+          <span class="search-ico">⌕</span>
+          <input type="search" id="q" placeholder="Sök projekt, nummer, projektledare eller kund…" autocomplete="off">
+        </div>
+        <div class="chips" id="chips"></div>
+        <div class="toolbar-right">
+          <label class="sort">Sortera
+            <select id="sort">
+              <option value="risk">Störst behov först</option>
+              <option value="end">Slutdatum (närmast först)</option>
+              <option value="remaining">Timmar kvar (flest först)</option>
+              <option value="budget">Budget (störst först)</option>
+              <option value="deviation">Mest efter plan</option>
+              <option value="progress">Förbrukat (mest först)</option>
+              <option value="number">Projektnummer</option>
+              <option value="name">Namn A–Ö</option>
+              <option value="manager">Projektledare</option>
+            </select>
+          </label>
+          <div class="seg" role="group" aria-label="Vy">
+            <button id="viewCards" class="on" title="Kortvy">▦ Kort</button>
+            <button id="viewList" title="Listvy">☰ Lista</button>
+          </div>
+        </div>
+      </section>
+
+      <section id="grid" class="grid"></section>
+      <section id="list" class="panel hidden"><div class="table-wrap"><table id="tbl"></table></div></section>
+      <div id="empty" class="empty hidden">Inga projekt matchar sökningen.</div>
+
+      <!-- Bemanning framåt -->
+      <section class="panel">
+        <div class="panel-head">
+          <div>
+            <h2>Bemanning framåt</h2>
+            <p class="muted">Personer som behövs per månad för att alla projekt ska bli klara i tid, jämfört med jämn bemanning och kapacitet.</p>
+          </div>
+          <div class="legend">
+            <span><i class="sw need"></i>Behövs</span>
+            <span><i class="sw plan"></i>Jämn plan</span>
+            <span><i class="sw cap"></i>Kapacitet</span>
+          </div>
+        </div>
+        <div id="monthChart" class="chart"></div>
+      </section>
+
+      <footer class="foot" id="foot"></footer>
+    </main>
+  </div>
+
+  <!-- Detaljvy -->
+  <div id="modal" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card">
+      <header class="modal-head">
+        <div>
+          <div class="modal-kicker" id="mKicker"></div>
+          <h2 id="mTitle"></h2>
+          <div class="muted" id="mSub"></div>
+        </div>
+        <div class="modal-actions">
+          <a id="mLink" class="btn" target="_blank" rel="noopener">Öppna i Projektportalen ↗</a>
+          <button class="btn icon" data-close aria-label="Stäng">✕</button>
+        </div>
+      </header>
+      <div class="modal-body">
+        <div class="m-headline" id="mHeadline"></div>
+        <div class="m-grid">
+          <div>
+            <div class="m-chart-head">
+              <h3>Timförbrukning över projektet</h3>
+              <div class="legend" id="mLegend">
+                <span><i class="sw ln-actual"></i>Faktiskt</span>
+                <span><i class="sw ln-plan"></i>Jämn plan</span>
+                <span><i class="sw ln-need"></i>Behövs till slut</span>
+                <span><i class="sw ln-fc"></i>Prognos nuvarande takt</span>
+              </div>
+            </div>
+            <div id="mChart" class="chart big"></div>
+            <div class="m-chart-head">
+              <h3>Timmar per vecka</h3>
+              <div class="legend">
+                <span><i class="sw bar"></i>Rapporterat</span>
+                <span><i class="sw ln-plan"></i>Jämn plan</span>
+                <span><i class="sw ln-need"></i>Behövs framåt</span>
+              </div>
+            </div>
+            <div id="mWeekly" class="chart"></div>
+            <p class="muted small" id="mSource"></p>
+          </div>
+          <aside class="m-facts" id="mFacts"></aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Inställningar -->
+  <div id="settings" class="modal hidden" role="dialog" aria-modal="true">
+    <div class="modal-backdrop" data-close></div>
+    <div class="modal-card narrow">
+      <header class="modal-head">
+        <h2>Inställningar</h2>
+        <button class="btn icon" data-close aria-label="Stäng">✕</button>
+      </header>
+      <div class="modal-body">
+        <div class="form">
+          <label>Minsta budget för att visas (h)<input type="number" id="setThreshold" min="0" step="10"></label>
+          <label>Timmar per person och vecka<input type="number" id="setHours" min="1" step="1"></label>
+          <label>Takt räknas på senaste (dagar)<input type="number" id="setLookback" min="7" step="7"></label>
+          <label>Tillgänglig kapacitet (personer)<input type="number" id="setCapacity" min="0" step="0.5" placeholder="Automatisk uppskattning"></label>
+          <label>”Efter plan” när bemanningen måste öka mer än (×)<input type="number" id="setOrange" min="1" step="0.05"></label>
+          <label>”Kritisk” när bemanningen måste öka mer än (×)<input type="number" id="setRed" min="1" step="0.05"></label>
+          <label class="check"><input type="checkbox" id="setShowFrames"> Visa projekt markerade som ramavtal</label>
+        </div>
+        <p class="muted small">Ramavtal (löpande avtal med stora timramar) markeras i projektets detaljvy och räknas då inte in i behovet.</p>
+        <div class="form-actions">
+          <button id="btnSaveSettings" class="btn primary">Spara</button>
+          <button class="btn" data-close>Avbryt</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tooltip" class="tooltip hidden"></div>
+
+  <script src="lib/calc.js"></script>
+  <script src="lib/data.js"></script>
+  <script src="lib/charts.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>

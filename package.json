@@ -1,0 +1,7 @@
+{
+  "name": "pp-planering",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Chrome-tillägg: bemanningsplanering för Projektportalen",
+  "scripts": { "test": "node --test test/calc.test.js" }
+}
