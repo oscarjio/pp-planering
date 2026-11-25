@@ -1,0 +1,107 @@
+<!doctype html>
+<html lang="sv">
+<head>
+  <meta charset="utf-8">
+  <title>PP Planering – bemanningsöversikt</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <header class="top">
+    <div class="brand">
+      <img src="icons/icon32.png" alt="" width="24" height="24">
+      <h1>PP Planering</h1>
+      <span class="sub">Bemanningsöversikt – stora projekt</span>
+    </div>
+    <div class="actions">
+      <span id="conn" class="conn">Ansluter…</span>
+      <button id="btnReload" class="btn">Uppdatera</button>
+      <button id="btnCsv" class="btn ghost" disabled>Exportera CSV</button>
+      <button id="btnSettings" class="btn ghost">Inställningar</button>
+    </div>
+  </header>
+
+  <section id="connectBox" class="panel notice hidden">
+    <h2>Projektportalen är inte öppen</h2>
+    <p>Tillägget läser data via din inloggade session i Projektportalen. Öppna Projektportalen i en flik, logga in och tryck sedan <b>Uppdatera</b>.</p>
+    <button id="btnOpenPortal" class="btn">Öppna Projektportalen</button>
+  </section>
+
+  <section id="settingsBox" class="panel hidden">
+    <h2>Inställningar</h2>
+    <div class="grid-form">
+      <label>Minsta budget (h) <input type="number" id="setThreshold" min="0" step="10"></label>
+      <label>Timmar per person/vecka <input type="number" id="setHours" min="1" step="1"></label>
+      <label>Takt beräknas på senaste (dagar) <input type="number" id="setLookback" min="7" step="7"></label>
+      <label>Tillgänglig kapacitet (personer) <input type="number" id="setCapacity" min="0" step="0.5" placeholder="auto"></label>
+      <label>Gul vid uppmanningsfaktor över <input type="number" id="setOrange" min="1" step="0.05"></label>
+      <label>Röd vid uppmanningsfaktor över <input type="number" id="setRed" min="1" step="0.05"></label>
+      <label class="check"><input type="checkbox" id="setShowFrames"> Visa projekt markerade som ramavtal</label>
+    </div>
+    <div class="row-actions">
+      <button id="btnSaveSettings" class="btn">Spara</button>
+      <button id="btnCloseSettings" class="btn ghost">Stäng</button>
+    </div>
+  </section>
+
+  <div id="status" class="status"></div>
+
+  <main id="main" class="hidden">
+    <section class="cards" id="cards"></section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Bemanningsbehov per månad</h2>
+        <div class="legend">
+          <span><i class="sw need"></i>Behövd (för att hinna i tid)</span>
+          <span><i class="sw plan"></i>Planerad jämn bemanning</span>
+          <span><i class="sw cap"></i>Kapacitet</span>
+        </div>
+      </div>
+      <div id="monthChart" class="chart"></div>
+      <p class="hint">Behövd = timmar kvar utslaget jämnt från idag till respektive projekts slutdatum. Staplar över kapacitetslinjen = risk för att behöva hyra in.</p>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">
+        <h2>Projekt</h2>
+        <input type="search" id="filter" placeholder="Filtrera nummer, namn, PL, kund…">
+      </div>
+      <div class="table-wrap">
+        <table id="tbl">
+          <thead>
+            <tr>
+              <th data-k="status"></th>
+              <th data-k="number">Nr</th>
+              <th data-k="name">Projekt</th>
+              <th data-k="manager">PL</th>
+              <th data-k="end">Slutdatum</th>
+              <th data-k="budget" class="num">Budget h</th>
+              <th data-k="actual" class="num">Utfört h</th>
+              <th data-k="remaining" class="num">Kvar h</th>
+              <th data-k="elapsedFrac" class="num">Tid gått</th>
+              <th data-k="budgetUsedFrac" class="num">Budget förbr.</th>
+              <th data-k="plannedPersons" class="num" title="Jämn bemanning över hela projektet">Plan pers</th>
+              <th data-k="recentPersons" class="num" title="Faktisk takt senaste perioden">Nu pers</th>
+              <th data-k="neededPersons" class="num" title="Bemanning som behövs resten av projektet">Behövs pers</th>
+              <th data-k="factor" class="num" title="Behövd takt / planerad takt">Faktor</th>
+              <th data-k="forecastEnd">Prognos klar</th>
+              <th title="Markera löpande ramavtal som inte ska räknas">Ram</th>
+            </tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="hint">Klicka på en rad för kurva. <b>Faktor</b> 1,0 = i fas med jämn bemanning, 2,0 = dubbel bemanning krävs resten av projektet.
+        🟢 i fas · 🟠 efter plan · 🔴 kraftig uppmanning krävs / slutdatum passerat · 🔵 tidigt överbemannat · ⚪ saknar datum.</p>
+    </section>
+
+    <footer class="foot" id="foot"></footer>
+  </main>
+
+  <script src="lib/calc.js"></script>
+  <script src="lib/data.js"></script>
+  <script src="lib/charts.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
