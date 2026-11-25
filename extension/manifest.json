@@ -2,9 +2,10 @@
   "manifest_version": 3,
   "name": "PP Planering – bemanningsöversikt",
   "short_name": "PP Planering",
-  "version": "0.2.0",
+  "version": "0.2.1",
   "description": "Långtidsplanering för stora projekt i Projektportalen: kvarvarande timmar mot slutdatum, uppmanningsbehov och kapacitet. Läser endast data.",
-  "permissions": ["storage", "scripting", "tabs"],
+  "minimum_chrome_version": "116",
+  "permissions": ["storage", "scripting"],
   "host_permissions": [
     "https://new-app.projektportalen.se/*",
     "https://new-api.projektportalen.se/*"

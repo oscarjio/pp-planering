@@ -6,8 +6,11 @@
 // och POST bara till list-endpoints som enbart läser data. Ändra inte detta
 // utan att verifiera att en ny endpoint inte skriver något.
 (() => {
-  if (window.__ppPlaneringLoaded) return;
-  window.__ppPlaneringLoaded = true;
+  // Undvik dubbla lyssnare, men ersätt en gammal instans vars tilläggskontext
+  // har dött (t.ex. efter att tillägget laddats om/uppdaterats).
+  const prev = window.__ppPlanering;
+  if (prev && prev.alive()) return;
+  window.__ppPlanering = { alive: () => { try { return !!chrome.runtime.id; } catch { return false; } } };
 
   const API = 'https://new-api.projektportalen.se/api';
 
@@ -55,7 +58,9 @@
     });
     const text = await res.text();
     if (!res.ok) {
-      const err = new Error(`HTTP ${res.status} för ${path}`);
+      const err = new Error(res.status === 401
+        ? 'Inloggningen i Projektportalen har gått ut – ladda om Projektportalen-fliken och logga in igen.'
+        : res.status === 403 ? `Saknar behörighet (403) för ${path}` : `HTTP ${res.status} för ${path}`);
       err.status = res.status;
       throw err;
     }

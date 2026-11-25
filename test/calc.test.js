@@ -138,3 +138,19 @@ test('rubrik beskriver läget', () => {
   const g = C.computeProject({ id: 3, budget: 800, actual: 420, start: new Date(today.getTime() - 10 * C.WEEK), end: new Date(today.getTime() + 10 * C.WEEK) }, today);
   assert.match(C.headline(g), /I fas – 20 h före plan/);
 });
+
+test('budget förbrukad före slutdatum syns (inte grön)', () => {
+  const start = new Date(today.getTime() - 10 * C.WEEK);
+  const end = new Date(today.getTime() + 10 * C.WEEK);
+  assert.strictEqual(C.computeProject({ id: 20, budget: 400, actual: 405, start, end }, today).status, 'orange');
+  assert.strictEqual(C.computeProject({ id: 21, budget: 400, actual: 520, start, end }, today).status, 'red');
+});
+
+test('försenat projekt räknas in i månadsbehovet', () => {
+  const start = new Date(today.getTime() - 20 * C.WEEK);
+  const end = new Date(today.getTime() - 1 * C.WEEK);
+  const r = C.computeProject({ id: 22, budget: 500, actual: 340, start, end }, today);
+  const months = C.monthlyDemand([r], today, 3);
+  const total = months.reduce((a, m) => a + m.neededHours, 0);
+  assert.ok(Math.abs(total - 160) < 1, 'alla 160 h kvar ska fördelas');
+});

@@ -82,6 +82,7 @@ extension/
   lib/data.js        datainhämtning
   lib/charts.js      SVG-diagram
 test/calc.test.js    node --test test/calc.test.js
+test/e2e_extension.py  end-to-end i Chromium mot simulerat API (se filhuvud)
 ```
 
 Release: pusha en tagg `vX.Y.Z` → GitHub Actions kör testerna, sätter versionen i manifestet, zippar `extension/` och lägger zippen på releasen.

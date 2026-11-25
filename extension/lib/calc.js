@@ -103,7 +103,12 @@
     if (actual > budget && budget > 0) flags.push('Budget överskriden');
     // Extra personer som krävs utöver jämn bemanning – små restbelopp ska inte larma rött.
     const extraPersons = (isFinite(r.neededRate) ? r.neededRate - r.plannedRate : remaining) / o.hoursPerWeek;
-    if (r.weeksLeft <= 0 && remaining > 0) {
+    const overrun = budget > 0 ? actual - budget : 0;
+    if (budget > 0 && actual >= budget && r.weeksLeft > 0) {
+      // Budgeten slut men projektet pågår – kan inte räkna behov, men måste synas.
+      r.status = overrun >= Math.max(o.hoursPerWeek, budget * 0.1) ? 'red' : 'orange';
+      flags.push('Budgeten förbrukad före slutdatum');
+    } else if (r.weeksLeft <= 0 && remaining > 0) {
       r.status = remaining >= o.hoursPerWeek * o.minExtraPersons ? 'red' : 'orange';
       flags.push('Slutdatum passerat med timmar kvar');
     } else if (r.factor != null && r.factor > o.redFactor) {
@@ -151,12 +156,16 @@
       const byProject = [];
       for (const r of results) {
         if (!r.start || !r.end || r.status === 'grey') continue;
+        // Försenade projekt (slutdatum passerat, timmar kvar): lägg resten på kommande 4 veckor.
+        const late = !isFinite(r.neededRate) && r.remaining > 0;
+        const needRate = late ? r.remaining / 4 : r.neededRate;
+        const needEnd = late ? new Date(t.getTime() + 4 * WEEK) : r.end;
         // behövd: från max(idag, start) till slut
-        if (isFinite(r.neededRate) && r.neededRate > 0) {
-          const a = new Date(Math.max(from, r.start, t));
-          const b = new Date(Math.min(mEnd, r.end));
+        if (isFinite(needRate) && needRate > 0) {
+          const a = new Date(Math.max(from, late ? t : r.start, t));
+          const b = new Date(Math.min(mEnd, needEnd));
           if (b > a) {
-            const h = r.neededRate * ((b - a) / WEEK);
+            const h = needRate * ((b - a) / WEEK);
             needH += h;
             byProject.push({ id: r.id, hours: h });
           }
@@ -261,6 +270,9 @@
     const n1 = (x) => (Math.round(x * 10) / 10).toLocaleString('sv-SE');
     const n0 = (x) => Math.round(x).toLocaleString('sv-SE');
     if (r.status === 'grey') return 'Saknar start- eller slutdatum';
+    if (r.start && r.elapsedFrac === 0 && r.actual === 0 && r.status === 'green') {
+      return `Startar ${r.start.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' })} – planerat ${n1(r.plannedPersons)} pers`;
+    }
     if (r.remaining <= 0) return r.actual > r.budget ? `Budget överskriden med ${n0(r.actual - r.budget)} h` : 'Budgeten är förbrukad';
     if (r.weeksLeft <= 0) return `Slutdatum passerat – ${n0(r.remaining)} h kvar`;
     if (r.status === 'red' || r.status === 'orange') {

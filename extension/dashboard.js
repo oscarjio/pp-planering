@@ -219,6 +219,7 @@
     const cls = r.status === 'red' ? 'bad' : r.status === 'orange' ? 'warn' : 'good';
     if (r.status === 'grey') return '–';
     if (!isFinite(r.neededPersons)) return `<span class="${cls}">slut passerat</span>`;
+    if (r.budget > 0 && r.actual >= r.budget && r.weeksLeft > 0) return `<span class="${cls}">budget slut</span>`;
     return `${n1(r.plannedPersons)} → <span class="${cls}">${n1(r.neededPersons)}</span>`;
   }
 
@@ -242,12 +243,12 @@
       </div>
       <div>
         <div class="time"><div class="fill" style="width:${((r.elapsedFrac ?? 0) * 100).toFixed(1)}%"></div></div>
-        <div class="time-label"><span>${r.start ? dLong(r.start) : '–'}</span><span><b>${weeksLeft}</b>${weeksLeft ? ' · ' : ''}slut ${dLong(r.end)}</span></div>
+        <div class="time-label"><span>${r.start ? dLong(r.start) : '–'}</span><span>${r.end ? `<b>${weeksLeft}</b>${weeksLeft ? ' · ' : ''}slut ${dLong(r.end)}` : 'slutdatum saknas'}</span></div>
       </div>
       <div class="c-stats">
         <div class="c-stat"><div class="l">Kvar</div><div class="v">${n0(r.remaining)} <small>h</small></div></div>
-        <div class="c-stat"><div class="l">Bemanning</div><div class="v">${staffHtml(r)}${isFinite(r.neededPersons) && r.status !== 'grey' ? ' <small>pers</small>' : ''}</div></div>
-        <div class="c-stat"><div class="l">Mot plan</div><div class="v ${devCls}">${signed(r.deviation)} <small>h</small></div></div>
+        <div class="c-stat"><div class="l">Bemanning</div><div class="v">${staffHtml(r)}${/^\d|^–|→/.test(staffHtml(r)) && staffHtml(r) !== '–' ? ' <small>pers</small>' : ''}</div></div>
+        <div class="c-stat"><div class="l">Mot plan</div><div class="v ${devCls}">${signed(r.deviation)}${r.deviation == null ? '' : ' <small>h</small>'}</div></div>
       </div>
       <div class="c-msg">${esc(r.isFrame ? 'Markerad som ramavtal – räknas inte i behovet' : r.headline)}</div>
     </article>`;
@@ -412,6 +413,7 @@
     const cell = (v) => {
       if (typeof v === 'number') v = isFinite(v) ? String(Math.round(v * 100) / 100).replace('.', ',') : '';
       v = String(v ?? '');
+      if (/^[=+\-@\t\r]/.test(v) && !/^-?\d/.test(v)) v = "'" + v; // skydd mot formler i Excel
       return /[;"\n]/.test(v) ? '"' + v.replace(/"/g, '""') + '"' : v;
     };
     const lines = [cols.map((c) => c[0]).join(';'), ...visible().map((r) => cols.map((c) => cell(c[1](r))).join(';'))];

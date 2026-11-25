@@ -38,9 +38,21 @@
     await chrome.tabs.create({ url: PP_URL, active: true });
   }
 
-  async function api(req) {
+  async function send(req) {
     if (ppTabId == null) throw new Error('Ingen Projektportalen-flik ansluten.');
-    const res = await chrome.tabs.sendMessage(ppTabId, { type: 'pp-api', req });
+    return chrome.tabs.sendMessage(ppTabId, { type: 'pp-api', req });
+  }
+
+  async function api(req) {
+    let res;
+    try {
+      res = await send(req);
+    } catch {
+      // Fliken kan ha laddats om eller stängts – försök hitta/ansluta igen en gång.
+      const t = await findTab();
+      if (!t) throw new Error('Tappade kontakten med Projektportalen-fliken. Öppna Projektportalen och tryck Uppdatera.');
+      res = await send(req);
+    }
     if (!res) throw new Error('Inget svar från Projektportalen-fliken.');
     if (!res.ok) {
       const e = new Error(res.error || 'Okänt fel');
@@ -78,7 +90,8 @@
       });
       const page = (r && r.Rows) || [];
       rows.push(...page);
-      if (page.length < 500 || rows.length >= (r.TotalCount || 0)) break;
+      const total = r && r.TotalCount;
+      if (page.length < 500 || (total != null && rows.length >= total)) break;
     }
     return rows;
   }
@@ -130,11 +143,13 @@
     const missing = big.filter((r) => !listById.has(r.ProjectId));
     let i = 0;
     const details = new Map();
-    await pool(missing, 4, async (r) => {
+    const detailRes = await pool(missing, 4, async (r) => {
       progress(`Hämtar projektdetaljer ${++i}/${missing.length}…`);
       const d = await api({ method: 'GET', path: `/projects/${r.ProjectId}` });
       details.set(r.ProjectId, d);
     });
+    const detailErrors = detailRes.filter((x) => x && x.__error).length;
+    if (detailErrors) meta.warnings.push(`${detailErrors} projekt saknar datum – detaljer kunde inte hämtas.`);
 
     const projects = [];
     let inactive = 0;
@@ -164,7 +179,7 @@
     }
     meta.inactiveSkipped = inactive;
 
-    // --- Takt: 1) ögonblicksbilder, 2) tidrader per projekt, 3) Hantera tid ---
+    // --- Takt: 1) tidrader per projekt, 2) ögonblicksbilder, 3) Hantera tid ---
     progress('Uppdaterar historik…');
     const store = await chrome.storage.local.get('snaps');
     const snaps = store.snaps || {};
@@ -177,26 +192,26 @@
       const rate = PPCalc.rateFromSnapshots(arr, today, lookbackDays);
       if (rate != null) { p.recentWeekly = rate; p.rateSource = 'historik'; }
     }
+    for (const id of Object.keys(snaps)) {
+      const arr = snaps[id] || [];
+      if (!arr.length || new Date(arr[arr.length - 1].date) < keepFrom) delete snaps[id];
+    }
     await chrome.storage.local.set({ snaps });
 
-    // Tidrader per projekt (full historik, cachas för detaljvyn). Testa först ett projekt –
-    // ger det inga rader saknar rollen troligen behörighet och vi hoppar över resten.
-    const needRate = projects.filter((p) => p.recentWeekly == null && p.actual > 0)
-      .sort((a, b) => b.actual - a.actual);
+    // Tidrader per projekt (full historik, cachas för detaljvyn). Projekt utan behörighet
+    // ger 0 rader och faller tillbaka på historik/Hantera tid.
+    // Tidrader är mest exakta och går före ögonblicksbilder när de finns.
+    const needRate = projects.filter((p) => p.actual > 0).sort((a, b) => b.actual - a.actual);
     if (needRate.length) {
-      progress('Hämtar tidrader…');
-      const first = await loadHistory(needRate[0].id);
-      if (first.source === 'tidrader') {
-        let done = 0;
-        await pool(needRate, 3, async (p) => {
-          const h = await loadHistory(p.id);
-          progress(`Hämtar tidrader ${++done}/${needRate.length}…`);
-          if (h.source === 'tidrader') {
-            p.recentWeekly = PPCalc.rateFromTimeRows(h.rows, today, lookbackDays);
-            p.rateSource = 'tidrader';
-          }
-        });
-      }
+      let done = 0;
+      await pool(needRate, 3, async (p) => {
+        const h = await loadHistory(p.id);
+        progress(`Hämtar tidrader ${++done}/${needRate.length}…`);
+        if (h.source === 'tidrader') {
+          p.recentWeekly = PPCalc.rateFromTimeRows(h.rows, today, lookbackDays);
+          p.rateSource = 'tidrader';
+        }
+      });
     }
 
     progress('Hämtar veckoöversikt (Hantera tid)…');
@@ -242,7 +257,8 @@
         });
         const page = (r && (r.Rows || r.rows)) || [];
         rows.push(...page.map((x) => ({ date: x.ReportDate || x.Timestamp, hours: Number(x.Quantity) || 0 })));
-        if (page.length < PAGE || rows.length >= (r.TotalCount || 0)) break;
+        const total = r && r.TotalCount;
+        if (page.length < PAGE || (total != null && rows.length >= total)) break;
       }
       if (rows.length) result = { source: 'tidrader', rows };
     } catch { /* ingen behörighet → fallback */ }

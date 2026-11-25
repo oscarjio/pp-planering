@@ -19,6 +19,7 @@
     return steps.find((s) => n <= s + 1e-9) * p;
   }
 
+  const esc = (v) => String(v ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
   const fmt0 = (x) => Math.round(x).toLocaleString('sv-SE');
   const fmt1 = (x) => (Math.round(x * 10) / 10).toLocaleString('sv-SE');
   const dShort = (d) => d.toLocaleDateString('sv-SE', { day: 'numeric', month: 'short' });
@@ -74,8 +75,8 @@
       if (m.neededPersons >= 0.05) g.append(el('text', { x: cx + 2 + bw / 2, y: y(m.neededPersons) - 5, 'text-anchor': 'middle', style: `fill:${over ? cssVar('--red') : cssVar('--ink-2')};font-weight:600` }, fmt1(m.neededPersons)));
       g.append(el('text', { x: cx, y: H - 10, 'text-anchor': 'middle' }, m.label));
       g.addEventListener('mousemove', (e) => {
-        const top = (m.topProjects || []).slice(0, 4).map((p) => `<br>· ${p.label}: ${fmt1(p.persons)} pers`).join('');
-        showTip(e, `<b>${m.label}</b><br>Behövs: <b>${fmt1(m.neededPersons)} pers</b> (${fmt0(m.neededHours)} h)<br>Jämn plan: ${fmt1(m.plannedPersons)} pers${capacity ? `<br>Kapacitet: ${fmt1(capacity)} pers` : ''}${top ? '<br><span style="opacity:.75">Största behov:</span>' + top : ''}`);
+        const top = (m.topProjects || []).slice(0, 4).map((p) => `<br>· ${esc(p.label)}: ${fmt1(p.persons)} pers`).join('');
+        showTip(e, `<b>${esc(m.label)}</b><br>Behövs: <b>${fmt1(m.neededPersons)} pers</b> (${fmt0(m.neededHours)} h)<br>Jämn plan: ${fmt1(m.plannedPersons)} pers${capacity ? `<br>Kapacitet: ${fmt1(capacity)} pers` : ''}${top ? '<br><span style="opacity:.75">Största behov:</span>' + top : ''}`);
       });
       g.addEventListener('mouseleave', hideTip);
       svg.append(g);
@@ -112,12 +113,11 @@
       const cum = PPCalc.cumulativeSeries(history.rows);
       const last = cum.length ? cum[cum.length - 1].cum : 0;
       const k = last > 0 && r.actual > 0 ? r.actual / last : 1;  // stäm av mot PP:s summa
-      const firstT = cum[0] ? Math.min(t0, cum[0].d.getTime()) : t0;
-      actualPts = [{ t: firstT, h: 0 }, ...cum.map((p) => ({ t: p.d.getTime(), h: p.cum * k }))];
+      actualPts = [{ t: t0, h: 0 }, ...cum.map((p) => ({ t: Math.max(t0, p.d.getTime()), h: p.cum * k }))];
       if (actualPts[actualPts.length - 1].t < tT) actualPts.push({ t: tT, h: r.actual });
       actualKind = 'rows';
     } else if (history && history.source === 'historik') {
-      actualPts = [{ t: t0, h: 0 }, ...history.snaps.map((s) => ({ t: PPCalc.toDate(s.date).getTime(), h: Number(s.actual) }))];
+      actualPts = [{ t: t0, h: 0 }, ...history.snaps.map((s) => ({ t: Math.max(t0, PPCalc.toDate(s.date).getTime()), h: Number(s.actual) }))];
       actualKind = 'snaps';
     }
 
@@ -253,7 +253,7 @@
     const to = r.end && r.end > today ? r.end : today;
     const weeks = PPCalc.weeklyBuckets(history.rows, r.start, to);
     if (!weeks.length) { container.innerHTML = '<div class="nohist">Inga veckor att visa.</div>'; return; }
-    const W = 860, H = 190, L = 56, R = 20, T = 18, B = 28;
+    const W = 860, H = 196, L = 56, R = 20, T = 26, B = 28;
     const tT = today.getTime();
     const maxV = niceMax(Math.max(...weeks.map((w) => w.hours), r.plannedRate || 0, isFinite(r.neededRate) ? r.neededRate : 0, 1) * 1.12);
     const iw = W - L - R, ih = H - T - B;
@@ -265,7 +265,7 @@
       svg.append(el('line', { x1: L, x2: W - R, y1: y(v), y2: y(v), stroke: cssVar('--line') }));
       svg.append(el('text', { x: L - 8, y: y(v) + 4, 'text-anchor': 'end' }, fmt0(v)));
     }
-    svg.append(el('text', { x: 6, y: T - 6 }, 'h/vecka'));
+    svg.append(el('text', { x: 6, y: 11 }, 'h/vecka'));
     let lastMonth = -1, labels = 0, lastX = -1e9;
     const every = Math.max(1, Math.ceil(weeks.length / 4.3 / 10));
     weeks.forEach((w, i) => {
