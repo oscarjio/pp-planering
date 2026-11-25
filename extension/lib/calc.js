@@ -218,6 +218,62 @@
     return sum / (lookbackDays / 7);
   }
 
+  /**
+   * Ackumulerad förbrukning per dag från tidrader.
+   * @returns [{ d: Date, cum: number }] sorterat, en punkt per dag med rapporterad tid
+   */
+  function cumulativeSeries(rows) {
+    const perDay = new Map();
+    for (const r of rows || []) {
+      const d = toDate(r.date);
+      if (!d) continue;
+      const k = d.getTime();
+      perDay.set(k, (perDay.get(k) || 0) + (Number(r.hours) || 0));
+    }
+    let cum = 0;
+    return [...perDay.entries()].sort((a, b) => a[0] - b[0]).map(([k, h]) => ({ d: new Date(k), cum: (cum += h) }));
+  }
+
+  /**
+   * Timmar per kalendervecka (måndag–söndag) mellan from och to.
+   * @returns [{ weekStart: Date, hours }]
+   */
+  function weeklyBuckets(rows, from, to) {
+    const monday = (d) => { const x = startOfDay(d); const wd = (x.getDay() + 6) % 7; x.setDate(x.getDate() - wd); return x; };
+    const a = monday(toDate(from)), b = monday(toDate(to));
+    const out = [];
+    const idx = new Map();
+    for (let w = new Date(a); w <= b; w.setDate(w.getDate() + 7)) {
+      idx.set(w.getTime(), out.length);
+      out.push({ weekStart: new Date(w), hours: 0 });
+    }
+    for (const r of rows || []) {
+      const d = toDate(r.date);
+      if (!d) continue;
+      const i = idx.get(monday(d).getTime());
+      if (i != null) out[i].hours += Number(r.hours) || 0;
+    }
+    return out;
+  }
+
+  /** Kort mänsklig sammanfattning av läget. */
+  function headline(r, hoursPerWeek = DEFAULTS.hoursPerWeek) {
+    const n1 = (x) => (Math.round(x * 10) / 10).toLocaleString('sv-SE');
+    const n0 = (x) => Math.round(x).toLocaleString('sv-SE');
+    if (r.status === 'grey') return 'Saknar start- eller slutdatum';
+    if (r.remaining <= 0) return r.actual > r.budget ? `Budget överskriden med ${n0(r.actual - r.budget)} h` : 'Budgeten är förbrukad';
+    if (r.weeksLeft <= 0) return `Slutdatum passerat – ${n0(r.remaining)} h kvar`;
+    if (r.status === 'red' || r.status === 'orange') {
+      const extra = (r.neededRate - r.plannedRate) / hoursPerWeek;
+      return `Måste öka bemanningen ${n1(r.factor)}× (+${n1(Math.max(0, extra))} pers) för att hinna`;
+    }
+    if (r.status === 'blue') return `Ligger ${n0(r.deviation)} h före plan – hög förbrukning tidigt`;
+    const tol = Math.max(5, r.budget * 0.02);
+    if (r.deviation == null || Math.abs(r.deviation) < tol) return 'I fas – följer planen';
+    if (r.deviation > 0) return `I fas – ${n0(r.deviation)} h före plan`;
+    return `I fas – ${n0(-r.deviation)} h efter plan, ryms i nuvarande bemanning`;
+  }
+
   /** Statussortering: värst först */
   const STATUS_ORDER = { red: 0, orange: 1, blue: 2, green: 3, grey: 4 };
 
@@ -232,6 +288,6 @@
 
   return {
     DEFAULTS, computeProject, monthlyDemand, rateFromSnapshots, rateFromTimeRows,
-    sortResults, toDate, round1, WEEK, DAY,
+    sortResults, toDate, round1, WEEK, DAY, cumulativeSeries, weeklyBuckets, headline,
   };
 });

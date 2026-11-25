@@ -6,6 +6,20 @@ Visar alla stora projekt (budget ≥ 40 h, justerbart) med timmar kvar, slutdatu
 
 **Tillägget läser bara data.** Det kan inte ändra något i Projektportalen (se [Säkerhet](#säkerhet)).
 
+*Skärmbilderna visar påhittad testdata.*
+
+**Översikt** – alla projekt som kort med status, timmar mot plan och bemanningsbehov
+
+![Översikt](docs/screenshots/oversikt.png)
+
+**Detaljvy** – förbrukningskurva från start till slut, var man är idag, timmar per vecka
+
+![Detaljvy](docs/screenshots/detalj.png)
+
+**Listvy**
+
+![Lista](docs/screenshots/lista.png)
+
 ## Installera
 
 1. Hämta senaste `PP-Planering-x.y.z.zip` under [Releases](https://github.com/oscarjio/pp-planering/releases/latest).
@@ -26,20 +40,19 @@ Vad man ser beror på inloggad användares behörighet i Projektportalen. Logga 
 
 ### Vyn
 
-- **Kort:** antal stora projekt, hur många som ligger efter, timmar kvar och max bemanningsbehov kommande 3 månader mot kapacitet.
-- **Bemanningsbehov per månad:** staplar för *behövd* bemanning (timmar kvar fördelade jämnt fram till slutdatum) och *planerad* jämn bemanning. Röd streckad linje = kapacitet. Staplar över linjen betyder risk för inhyrning.
-- **Projekttabell** (klicka på en rad för kurva):
+- **Nyckeltal** överst: antal aktiva projekt, hur många som är i fas / efter plan / kritiska (klicka för att filtrera), timmar kvar och bemanningsbehov kommande 3 månader mot kapacitet.
+- **Sök, filtrera och sortera**: fritext på nummer, namn, projektledare och kund; statusfilter; sortering på behov, slutdatum, timmar kvar, budget m.m. Kort- eller listvy.
+- **Projektkort**:
+  - *Timmar*-stapeln visar förbrukade timmar mot budget. Den svarta markören ▼ visar var man *borde* vara idag med jämn bemanning. Stapel kortare än markören = efter plan, längre = före plan.
+  - Den tunna stapeln under visar hur stor del av projekttiden som gått.
+  - *Bemanning* `1,4 → 2,9 pers` = jämn plan → vad som behövs resten av projektet.
+  - Raden längst ner sammanfattar läget i klartext.
+- **Detaljvy** (klicka på ett kort): förbrukningskurva från start till slutdatum med jämn plan, faktiskt utfall, var man är idag, vad som behövs fram till slut och prognos med nuvarande takt. Under den: timmar per vecka mot planerad och behövd takt. Hovra för värden.
+- **Bemanning framåt**: personer som behövs per månad över alla projekt mot kapacitet. Staplar över kapacitetslinjen betyder risk för att behöva hyra in.
 
-| Kolumn | Betydelse |
-|---|---|
-| Plan pers | Jämn bemanning över hela projektet = budget / projektlängd / 40 h |
-| Nu pers | Faktisk takt senaste 4 veckorna |
-| Behövs pers | Timmar kvar / veckor kvar / 40 h |
-| Faktor | Behövs / Plan. 1,0 = i fas, 2,0 = dubbel bemanning krävs resten av projektet |
-| Prognos klar | När projektet blir klart med nuvarande takt |
-| Ram | Markera löpande ramavtal (stora "budgetar" som inte är riktiga projekt) så räknas de inte |
+Status: 🟢 i fas · 🟠 efter plan (bemanningen måste öka > 15 %) · 🔴 kritisk (måste öka > 50 % och minst en halv person, eller slutdatum passerat) · 🔵 före plan / tidigt överbemannat · ⚪ saknar datum.
 
-Status: 🟢 i fas · 🟠 efter plan (faktor > 1,15) · 🔴 faktor > 1,5 och minst en halv person extra, eller slutdatum passerat · 🔵 tidigt överbemannat · ⚪ saknar datum.
+Löpande **ramavtal** med stora timramar markeras i detaljvyn och räknas då inte in i behovet.
 
 ### Inställningar
 

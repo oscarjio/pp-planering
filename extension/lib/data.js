@@ -106,17 +106,6 @@
     return { perProject, perUser };
   }
 
-  async function loadReportedTimes(projectId) {
-    const r = await api({
-      method: 'POST', path: '/projects/reported-user-times',
-      body: { StartRow: 0, EndRow: 1000, ProjectId: String(projectId), FilterModel: {},
-        SortModel: [{ colId: 'ReportDate', sort: 'desc' }], RowGroupCols: [], ValueCols: [],
-        PivotCols: [], PivotMode: false, GroupKeys: [], Keyword: '' },
-    });
-    const rows = Array.isArray(r) ? r : (r && (r.Rows || r.rows)) || [];
-    return rows.map((x) => ({ date: x.ReportDate || x.Timestamp, hours: Number(x.Quantity) || 0 }));
-  }
-
   /**
    * Hämta allt för översikten.
    * @param {object} settings { threshold, lookbackDays }
@@ -190,17 +179,24 @@
     }
     await chrome.storage.local.set({ snaps });
 
-    const needRate = projects.filter((p) => p.recentWeekly == null && p.actual > 0);
-    let reportedWorks = needRate.length > 0;
-    for (let k = 0; k < needRate.length && reportedWorks; k++) {
-      const p = needRate[k];
-      progress(`Hämtar tidrader ${k + 1}/${needRate.length}…`);
-      try {
-        const rows = await loadReportedTimes(p.id);
-        if (rows.length === 0 && k === 0) { reportedWorks = false; break; } // saknar behörighet → hoppa över
-        p.recentWeekly = PPCalc.rateFromTimeRows(rows, today, lookbackDays);
-        p.rateSource = 'tidrader';
-      } catch { if (k === 0) reportedWorks = false; }
+    // Tidrader per projekt (full historik, cachas för detaljvyn). Testa först ett projekt –
+    // ger det inga rader saknar rollen troligen behörighet och vi hoppar över resten.
+    const needRate = projects.filter((p) => p.recentWeekly == null && p.actual > 0)
+      .sort((a, b) => b.actual - a.actual);
+    if (needRate.length) {
+      progress('Hämtar tidrader…');
+      const first = await loadHistory(needRate[0].id);
+      if (first.source === 'tidrader') {
+        let done = 0;
+        await pool(needRate, 3, async (p) => {
+          const h = await loadHistory(p.id);
+          progress(`Hämtar tidrader ${++done}/${needRate.length}…`);
+          if (h.source === 'tidrader') {
+            p.recentWeekly = PPCalc.rateFromTimeRows(h.rows, today, lookbackDays);
+            p.rateSource = 'tidrader';
+          }
+        });
+      }
     }
 
     progress('Hämtar veckoöversikt (Hantera tid)…');
@@ -224,5 +220,42 @@
     return { today, projects, meta };
   }
 
-  root.PPData = { findTab, openPortal, loadAll, api };
+  const historyCache = new Map();
+
+  /**
+   * Förbrukningshistorik för ett projekt.
+   * 1) Alla tidrader via reported-user-times (kräver behörighet till projektet)
+   * 2) annars lokala ögonblicksbilder
+   * @returns {{ source: 'tidrader'|'historik'|null, rows?: [{date,hours}], snaps?: [{date,actual}] }}
+   */
+  async function loadHistory(projectId) {
+    if (historyCache.has(projectId)) return historyCache.get(projectId);
+    let result = { source: null };
+    try {
+      const rows = [];
+      const PAGE = 1000;
+      for (let start = 0; start < 20000; start += PAGE) {
+        const r = await api({
+          method: 'POST', path: '/projects/reported-user-times',
+          body: { StartRow: start, EndRow: start + PAGE, ProjectId: String(projectId), FilterModel: {},
+            SortModel: [], RowGroupCols: [], ValueCols: [], PivotCols: [], PivotMode: false, GroupKeys: [], Keyword: '' },
+        });
+        const page = (r && (r.Rows || r.rows)) || [];
+        rows.push(...page.map((x) => ({ date: x.ReportDate || x.Timestamp, hours: Number(x.Quantity) || 0 })));
+        if (page.length < PAGE || rows.length >= (r.TotalCount || 0)) break;
+      }
+      if (rows.length) result = { source: 'tidrader', rows };
+    } catch { /* ingen behörighet → fallback */ }
+    if (!result.source) {
+      const st = await chrome.storage.local.get('snaps');
+      const snaps = (st.snaps || {})[projectId] || [];
+      if (snaps.length >= 2) result = { source: 'historik', snaps };
+    }
+    historyCache.set(projectId, result);
+    return result;
+  }
+
+  function clearHistoryCache() { historyCache.clear(); }
+
+  root.PPData = { findTab, openPortal, loadAll, api, loadHistory, clearHistoryCache };
 })(self);

@@ -18,7 +18,7 @@ test('i fas: utfört enligt linjär plan ger faktor ≈ 1 och grön', () => {
   assert.strictEqual(r.status, 'green');
 });
 
-test('Oscars exempel: 1500 h kvar på ~2 månader, plan 2 pers → röd', () => {
+test('exempel: 1500 h kvar på ~2 månader, plan 2 pers → röd', () => {
   // Projekt 40 veckor à 80 h/v = 3200 h, 8,5 v kvar, bara 1700 utfört
   const start = new Date(today.getTime() - 31.5 * C.WEEK);
   const end = new Date(today.getTime() + 8.5 * C.WEEK);
@@ -117,4 +117,24 @@ test('takt från tidrader', () => {
     { date: '2026-09-01', hours: 100 }, // utanför fönstret
   ];
   near(C.rateFromTimeRows(rows, today, 28), 10);
+});
+
+test('ackumulerad serie och veckobuckets', () => {
+  const rows = [
+    { date: '2026-11-02', hours: 8 }, { date: '2026-11-02', hours: 4 },
+    { date: '2026-11-04', hours: 8 }, { date: '2026-11-10', hours: 6 },
+  ];
+  const cum = C.cumulativeSeries(rows);
+  assert.deepStrictEqual(cum.map((p) => p.cum), [12, 20, 26]);
+  const w = C.weeklyBuckets(rows, '2026-11-02', '2026-11-16');
+  assert.deepStrictEqual(w.map((x) => x.hours), [20, 6, 0]);
+});
+
+test('rubrik beskriver läget', () => {
+  const start = new Date(today.getTime() - 31.5 * C.WEEK);
+  const end = new Date(today.getTime() + 8.5 * C.WEEK);
+  const r = C.computeProject({ id: 2, budget: 3200, actual: 1700, start, end }, today);
+  assert.match(C.headline(r), /Måste öka bemanningen 2,2×/);
+  const g = C.computeProject({ id: 3, budget: 800, actual: 420, start: new Date(today.getTime() - 10 * C.WEEK), end: new Date(today.getTime() + 10 * C.WEEK) }, today);
+  assert.match(C.headline(g), /I fas – 20 h före plan/);
 });

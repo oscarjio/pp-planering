@@ -1,6 +1,6 @@
 # Projektportalen – nya API:et (v2, new-app) – kartläggning för planeringsverktyget
 
-> Kartlagt 2026-11-25 via live-trafik i `new-app.projektportalen.se`, inloggad som Oscar (roll PROJECTMANAGER, clientId 2681 / klientnummer 1584).
+> Kartlagt 2026-11-25 via live-trafik i `new-app.projektportalen.se`, inloggad med en användare med roll PROJECTMANAGER.
 > Ersätter i praktiken `orderportal/docs/api-spec.md` (som gäller gamla `api-app3`). Inofficiellt – kan ändras utan förvarning.
 
 ## Det som har ändrats sedan OrderPortal
@@ -28,7 +28,7 @@
 
 ### Behörighet / scope – viktigt
 
-Vad API:et returnerar beror på **inloggad användares roll**. Som Oscar (PROJECTMANAGER):
+Vad API:et returnerar beror på **inloggad användares roll**. Med roll PROJECTMANAGER (exempel från kartläggningen):
 - `POST /projects/list` → 86 rader (oavsett TabIndex – TabIndex verkar ignoreras här)
 - `GET /projects/risk-scores` → 337 projekt
 - `GET /workspace/summary?scope=all` → `ScopeCounts: { Mine: 25, Company: 490 }`
@@ -102,7 +102,7 @@ Personalgrupper som finns: Kollektivanställda, Samverkan, Tjänsteman Admin/Eko
 
 `GET /workspace/summary?scope=mine|all`, `GET /workspace/pipeline?scope=…`, `GET /workspace/my-projects`, `GET /projects/action-statuses?page=&pageSize=&scope=&includePeople=true` (åtgärder som "Uppdatera slutdatumet", försenade projekt), `POST /projects/financials`, `GET /clients/project-priorities/active`, `GET /forecast/counter`.
 
-## Planeringslogik (v1 – justerad efter Oscars krav 2026-11-25)
+## Planeringslogik (v1)
 
 **Urval:** bara stora projekt med budget – `TotalBudgetHours ≥ 40` (justerbar tröskel). Projekt med 0/låg budget visas inte.
 
